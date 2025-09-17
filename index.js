@@ -1,6 +1,7 @@
 const express = require('express');
 const { MongoClient } = require('mongodb');
 const path = require('path');
+const cors = require("cors");
 
 const app = express();
 const port = 3000;
@@ -8,6 +9,10 @@ const port = 3000;
 // MongoDB connection string
 const uri = "mongodb+srv://4n122104_db_user:penguins@cluster0.w4uqzla.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 const client = new MongoClient(uri);
+
+app.use(cors({
+  origin: "*",
+}));
 
 // Middleware to serve static files from the 'public' directory
 app.use(express.static(path.join(__dirname, 'public')));

@@ -730,7 +730,7 @@
             catalog.style.display = 'block';
             
             try {
-                const response = await fetch('/api/products');
+                const response = await fetch('https://sih-page.vercel.app/api/products');
                 if (!response.ok) {
                     throw new Error('Failed to fetch products from the server.');
                 }
@@ -823,7 +823,7 @@
             }
 
             try {
-                const response = await fetch('/api/products', {
+                const response = await fetch('https://sih-page.vercel.app/api/products', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -862,7 +862,7 @@
             }
 
             try {
-                const response = await fetch(`/api/products/${itemId}`, {
+                const response = await fetch(`https://sih-page.vercel.app/api/products/${itemId}`, {
                     method: 'DELETE'
                 });
 
