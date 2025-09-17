@@ -8,7 +8,18 @@ const port = 3000;
 
 // MongoDB connection string
 const uri = "mongodb+srv://4n122104_db_user:penguins@cluster0.w4uqzla.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
-const client = new MongoClient(uri);
+
+// Cached MongoClient instance
+let cachedClient = null;
+
+async function connectToDatabase() {
+  if (cachedClient && cachedClient.topology && cachedClient.topology.isConnected()) {
+    return cachedClient;
+  }
+  const client = new MongoClient(uri);
+  cachedClient = await client.connect();
+  return cachedClient;
+}
 
 app.use(cors({
   origin: "*",
@@ -31,25 +42,21 @@ app.get('/product/:itemId', (req, res) => {
 });
 
 const getProductsCollection = async () => {
-  await client.connect();
+  const client = await connectToDatabase();
   const db = client.db("your_catalogue_db");
   return db.collection("products");
 };
 
 // API endpoint to fetch products
 app.get('/api/products', async (req, res) => {
-  try {
-    const productsCollection = await getProductsCollection();
-    const products = await productsCollection.find({}).toArray();
-    res.json(products);
-  } catch (err) {
-    console.error("Error fetching products:", err);
-    res.status(500).send("Error fetching products.");
-  } finally {
-    // In a serverless environment, it's good practice to close the connection.
-    // The driver might handle pooling, but explicit closing is safer.
-    await client.close();
-  }
+    try {
+        const productsCollection = await getProductsCollection();
+        const products = await productsCollection.find({}).toArray();
+        res.json(products);
+    } catch (err) {
+        console.error("Error fetching products:", err);
+        res.status(500).send("Error fetching products.");
+    }
 });
 
 // API endpoint to add a new product
@@ -67,8 +74,6 @@ app.post('/api/products', async (req, res) => {
   } catch (err) {
     console.error("Error adding product:", err);
     res.status(500).send("Error adding product.");
-  } finally {
-    await client.close();
   }
 });
 
@@ -87,8 +92,6 @@ app.delete('/api/products/:itemId', async (req, res) => {
   } catch (err) {
     console.error("Error deleting product:", err);
     res.status(500).send("Error deleting product.");
-  } finally {
-    await client.close();
   }
 });
 
