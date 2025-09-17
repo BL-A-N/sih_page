@@ -1,10 +1,11 @@
 const express = require('express');
 const { MongoClient } = require('mongodb');
 const path = require('path');
+
 const app = express();
 const port = 3000;
 
-// Replace this with your actual MongoDB connection string
+// MongoDB connection string
 const uri = "mongodb+srv://4n122104_db_user:penguins@cluster0.w4uqzla.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 const client = new MongoClient(uri);
 
@@ -13,6 +14,16 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Middleware to parse JSON bodies. This needs to be before the routes are defined.
 app.use(express.json());
+
+// Redirect the root URL to your main HTML file
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Route for individual product pages
+app.get('/product/:itemId', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 async function main() {
   try {
@@ -23,7 +34,7 @@ async function main() {
     const db = client.db("your_catalogue_db");
     const productsCollection = db.collection("products");
 
-    // Create a new API endpoint to fetch products
+    // API endpoint to fetch products
     app.get('/api/products', async (req, res) => {
       try {
         const products = await productsCollection.find({}).toArray();
@@ -70,22 +81,17 @@ async function main() {
   } catch (e) {
     console.error(e);
     await client.close();
+    // In a serverless environment, it's better to let the process exit
+    // if the database connection fails on startup.
+    process.exit(1);
   }
 }
 
-// Redirect the root URL to your main HTML file
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+main().catch(console.error);
 
-// Route for individual product pages
-app.get('/product/:itemId', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+// For local development, you can still use app.listen
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(port, () => console.log(`Server running at http://localhost:${port}`));
+}
 
-main().catch(console.error).then(() => {
-    app.listen(port, () => {
-        console.log(`Server running at http://localhost:${port}`);
-        console.log('You can access the application by clicking the link above.');
-    });
-});
+module.exports = app;
