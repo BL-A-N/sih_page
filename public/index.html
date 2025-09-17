@@ -112,6 +112,20 @@
             box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
         }
         
+        .summary-btn {
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #5dade2 0%, #2e86c1 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+            display: block;
+            margin-top: 1rem;
+        }
+
         .delete-product-btn {
             width: 100%;
             padding: 15px;
@@ -386,6 +400,8 @@
         .product-detail-sidebar {
             flex: 1;
             min-width: 250px;
+            display: flex;
+            flex-direction: column;
         }
 
         .product-detail-title {
@@ -445,8 +461,17 @@
             background: #f7f9fc;
             padding: 1.5rem;
             border-radius: 15px;
-            margin-bottom: 1.5rem;
             box-shadow: inset 0 0 10px rgba(0,0,0,0.05);
+        }
+        
+        .ai-report-tab {
+            flex-grow: 1; /* Make it take available space */
+            display: flex;
+            flex-direction: column;
+        }
+
+        .qr-code-section {
+            margin-top: auto; /* Push to the bottom */
         }
 
         @media (max-width: 768px) {
@@ -559,6 +584,10 @@
                         <label for="warrantyNumber" class="form-label">Warranty Number</label>
                         <input type="text" id="warrantyNumber" class="form-input">
                     </div>
+                    <div class="form-group">
+                        <label for="lifeCycle" class="form-label">Life Cycle (in years)</label>
+                        <input type="number" id="lifeCycle" class="form-input">
+                    </div>
                     <button type="submit" class="add-product-btn">Add Product</button>
                 </form>
                 <div id="successMessage" class="success-message"></div>
@@ -596,11 +625,11 @@
                 </div>
                 <div class="product-detail-sidebar">
                     <div class="ai-report-tab">
-                        <h3 style="margin-bottom: 1rem; color: #555;">AI Lifecycle Report</h3>
-                        <p style="color: #777; font-size: 0.9rem;">
-                            This is a placeholder for the AI-generated report on the product's lifecycle,
-                            sustainability, and other insights. This feature is coming soon.
+                        <h3 style="margin-bottom: 0.5rem; color: #555;">AI Lifecycle Report</h3>
+                        <p id="aiReportContent" style="color: #777; font-size: 0.9rem; flex-grow: 1; overflow-y: auto; padding-right: 10px;">
+                            
                         </p>
+                        <button id="showSummaryBtn" class="summary-btn">Show Summary</button>
                     </div>
                     <div class="qr-code-section">
                         <h3 style="margin-bottom: 1rem; color: #555;">Product QR Code</h3>
@@ -777,6 +806,7 @@
                     ${product.supplyDate ? `<div class="info-item"><strong>Supply Date:</strong> <span>${formatDate(product.supplyDate)}</span></div>` : ''}
                     ${product.warrantyDate ? `<div class="info-item"><strong>Warranty Until:</strong> <span>${formatDate(product.warrantyDate)}</span></div>` : ''}
                     ${product.warrantyNumber ? `<div class="info-item"><strong>Warranty #:</strong> <span>${product.warrantyNumber}</span></div>` : ''}
+                    ${product.lifeCycle ? `<div class="info-item"><strong>Life Cycle:</strong> <span>${product.lifeCycle} years</span></div>` : ''}
                     ${product.addedBy ? `<div class="info-item added-by"><strong>Added By:</strong> <span>${product.addedBy}</span></div>` : ''}
                 </div>
             `;
@@ -799,6 +829,10 @@
             deleteBtn.className = 'delete-product-btn';
             deleteBtn.onclick = () => deleteProduct(product.itemId);
             productDetailMain.appendChild(deleteBtn);
+
+            // Add event listener for the summary button
+            const showSummaryBtn = document.getElementById('showSummaryBtn');
+            showSummaryBtn.onclick = () => generateAndShowSummary(product);
         }
 
         // Add a new product to the database via API call
@@ -814,6 +848,7 @@
                 supplyDate: document.getElementById('supplyDate').value,
                 warrantyDate: document.getElementById('warrantyDate').value,
                 warrantyNumber: document.getElementById('warrantyNumber').value,
+                lifeCycle: document.getElementById('lifeCycle').value,
                 addedBy: currentUser.email // Add current user's email
             };
 
@@ -936,7 +971,8 @@
                         ${product.vendorName ? `<strong>Vendor:</strong> ${product.vendorName}<br>` : ''}
                         ${product.supplyDate ? `<strong>Supply Date:</strong> ${formatDate(product.supplyDate)}<br>` : ''}
                         ${product.warrantyDate ? `<strong>Warranty Until:</strong> ${formatDate(product.warrantyDate)}<br>` : ''}
-                        ${product.warrantyNumber ? `<strong>Warranty #:</strong> ${product.warrantyNumber}` : ''}
+                        ${product.warrantyNumber ? `<strong>Warranty #:</strong> ${product.warrantyNumber}<br>` : ''}
+                        ${product.lifeCycle ? `<strong>Life Cycle:</strong> ${product.lifeCycle} years` : ''}
                     </div>
                     <button class="add-to-cart-btn" onclick="addToCart('${product.itemId}')">Add to Cart</button>
                 </a>
@@ -977,6 +1013,109 @@
                     button.style.background = 'linear-gradient(135deg, #2ecc71 0%, #27ae60 100%)';
                 }, 1500);
             }
+        }
+
+        // --- AI Summary Generation Logic (from summary.py) ---
+
+        function generateAndShowSummary(productData) {
+            const aiReportContent = document.getElementById('aiReportContent');
+            aiReportContent.innerHTML = '<em>🤖 Generating AI analysis... Please wait.</em>';
+
+            // Helper to calculate age in months from a date string
+            function calculateAgeMonths(supplyDateStr) {
+                if (!supplyDateStr) return 0;
+                const supply = new Date(supplyDateStr);
+                const now = new Date();
+                return Math.floor((now - supply) / (1000 * 60 * 60 * 24 * 30));
+            }
+
+            // AI Condition Analysis
+            function analyzeCondition(product) {
+                const ageMonths = calculateAgeMonths(product.supplyDate);
+                // Assuming inspection dates are not yet in the model, we'll use a placeholder
+                const daysSinceInspection = product.daysSinceInspection || 95; // Placeholder
+
+                let riskScore = 0;
+                const riskFactors = [];
+
+                // Age-based risk
+                if (ageMonths > 48) {
+                    riskScore += 40;
+                    riskFactors.push("Component may be exceeding its recommended service life.");
+                } else if (ageMonths > 36) {
+                    riskScore += 25;
+                    riskFactors.push("Component is approaching the end of its service life.");
+                } else if (ageMonths > 24) {
+                    riskScore += 10;
+                    riskFactors.push("Component is in its mid-service period.");
+                }
+
+                // Inspection-based risk (using placeholder)
+                if (daysSinceInspection > 180) {
+                    riskScore += 35;
+                    riskFactors.push("Overdue for inspection (>6 months).");
+                } else if (daysSinceInspection > 90) {
+                    riskScore += 20;
+                    riskFactors.push("Inspection is due soon.");
+                }
+
+                // Determine condition level
+                let condition, color;
+                if (riskScore >= 70) {
+                    condition = "CRITICAL";
+                    color = "🔴";
+                } else if (riskScore >= 40) {
+                    condition = "WARNING";
+                    color = "🟡";
+                } else {
+                    condition = "GOOD";
+                    color = "🟢";
+                }
+
+                return { condition, riskScore: Math.min(riskScore, 100), color, riskFactors, ageMonths, daysSinceInspection };
+            }
+
+            // Generate Maintenance Recommendations
+            function generateRecommendations(analysis) {
+                const recommendations = [];
+                if (analysis.condition === "CRITICAL") {
+                    recommendations.push("🚨 IMMEDIATE ACTION: Replace component immediately.");
+                    recommendations.push("🔧 Schedule emergency maintenance and safety inspection.");
+                } else if (analysis.condition === "WARNING") {
+                    recommendations.push("⚠️ Schedule replacement within the next 30-60 days.");
+                    recommendations.push("🔍 Increase inspection frequency to weekly/bi-weekly.");
+                } else {
+                    recommendations.push("✅ Continue normal operation and regular inspection schedule.");
+                }
+
+                if (analysis.daysSinceInspection > 90) {
+                    recommendations.push(`🔎 Schedule inspection (last known: ${analysis.daysSinceInspection} days ago).`);
+                }
+                if (analysis.ageMonths > 36) {
+                    recommendations.push("📈 Consider proactive replacement planning due to age.");
+                }
+                return recommendations;
+            }
+
+            // Perform analysis and generate report text
+            const analysis = analyzeCondition(productData);
+            const recommendations = generateRecommendations(analysis);
+
+            let reportText = `<strong>AI ANALYSIS REPORT</strong><br><br>`;
+            reportText += `<strong>Condition:</strong> ${analysis.color} ${analysis.condition}<br>`;
+            reportText += `<strong>Risk Score:</strong> ${analysis.riskScore}/100<br>`;
+            reportText += `<strong>Component Age:</strong> ${analysis.ageMonths} months<br><br>`;
+            
+            reportText += `<strong>Risk Factors:</strong><br>`;
+            analysis.riskFactors.forEach(factor => {
+                reportText += `&nbsp;&nbsp;• ${factor}<br>`;
+            });
+            reportText += `<br><strong>AI Recommendations:</strong><br>`;
+            recommendations.forEach(rec => {
+                reportText += `&nbsp;&nbsp;• ${rec}<br>`;
+            });
+
+            aiReportContent.innerHTML = reportText;
         }
 
         // Initialize the app
