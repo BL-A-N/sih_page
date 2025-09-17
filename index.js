@@ -30,69 +30,67 @@ app.get('/product/:itemId', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-async function main() {
+const getProductsCollection = async () => {
+  await client.connect();
+  const db = client.db("your_catalogue_db");
+  return db.collection("products");
+};
+
+// API endpoint to fetch products
+app.get('/api/products', async (req, res) => {
   try {
-    // Connect the client to the server
-    await client.connect();
-    console.log("Connected to MongoDB!");
-
-    const db = client.db("your_catalogue_db");
-    const productsCollection = db.collection("products");
-
-    // API endpoint to fetch products
-    app.get('/api/products', async (req, res) => {
-      try {
-        const products = await productsCollection.find({}).toArray();
-        res.json(products);
-      } catch (err) {
-        console.error(err);
-        res.status(500).send("Error fetching products.");
-      }
-    });
-
-    // API endpoint to add a new product
-    app.post('/api/products', async (req, res) => {
-      try {
-        const newProduct = req.body;
-        // The user's email is now sent from the frontend
-        const result = await productsCollection.insertOne(newProduct);
-        if (result.acknowledged) {
-          res.status(201).json(newProduct);
-        } else {
-          res.status(500).send("Failed to add product.");
-        }
-      } catch (err) {
-        console.error("Error adding product:", err);
-        res.status(500).send("Error adding product.");
-      }
-    });
-
-    // API endpoint to delete a product
-    app.delete('/api/products/:itemId', async (req, res) => {
-      try {
-        const { itemId } = req.params;
-        const result = await productsCollection.deleteOne({ itemId: itemId });
-
-        if (result.deletedCount === 1) {
-          res.status(200).json({ message: 'Product deleted successfully' });
-        } else {
-          res.status(404).send('Product not found');
-        }
-      } catch (err) {
-        console.error("Error deleting product:", err);
-        res.status(500).send("Error deleting product.");
-      }
-    });
-  } catch (e) {
-    console.error(e);
+    const productsCollection = await getProductsCollection();
+    const products = await productsCollection.find({}).toArray();
+    res.json(products);
+  } catch (err) {
+    console.error("Error fetching products:", err);
+    res.status(500).send("Error fetching products.");
+  } finally {
+    // In a serverless environment, it's good practice to close the connection.
+    // The driver might handle pooling, but explicit closing is safer.
     await client.close();
-    // In a serverless environment, it's better to let the process exit
-    // if the database connection fails on startup.
-    process.exit(1);
   }
-}
+});
 
-main().catch(console.error);
+// API endpoint to add a new product
+app.post('/api/products', async (req, res) => {
+  try {
+    const productsCollection = await getProductsCollection();
+    const newProduct = req.body;
+    // The user's email is now sent from the frontend
+    const result = await productsCollection.insertOne(newProduct);
+    if (result.acknowledged) {
+      res.status(201).json(newProduct);
+    } else {
+      res.status(500).send("Failed to add product.");
+    }
+  } catch (err) {
+    console.error("Error adding product:", err);
+    res.status(500).send("Error adding product.");
+  } finally {
+    await client.close();
+  }
+});
+
+// API endpoint to delete a product
+app.delete('/api/products/:itemId', async (req, res) => {
+  try {
+    const productsCollection = await getProductsCollection();
+    const { itemId } = req.params;
+    const result = await productsCollection.deleteOne({ itemId: itemId });
+
+    if (result.deletedCount === 1) {
+      res.status(200).json({ message: 'Product deleted successfully' });
+    } else {
+      res.status(404).send('Product not found');
+    }
+  } catch (err) {
+    console.error("Error deleting product:", err);
+    res.status(500).send("Error deleting product.");
+  } finally {
+    await client.close();
+  }
+});
 
 // For local development, you can still use app.listen
 if (process.env.NODE_ENV !== 'production') {
