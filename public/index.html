@@ -647,6 +647,7 @@
                     <div class="qr-code-section">
                         <h3 style="margin-bottom: 1rem; color: #555;">Product QR Code</h3>
                         <div id="qrcode" style="display: flex; justify-content: center; align-items: center;"></div>
+                        <button id="downloadQrBtn" class="summary-btn" style="width: 100%; margin-top: 1rem;">Download QR</button>
                     </div>
                 </div>
             </div>
@@ -858,6 +859,10 @@
             const showSummaryBtn = document.getElementById('showSummaryBtn');
             showSummaryBtn.onclick = () => generateAndShowSummary(product);
         }
+        
+        // Add event listener for the QR download button inside this function's scope
+        const downloadQrBtn = document.getElementById('downloadQrBtn');
+        downloadQrBtn.onclick = () => downloadQrCode(product);
 
         // Add a new product to the database via API call
         async function addNewProduct() {
@@ -1010,6 +1015,43 @@
                     button.style.background = 'linear-gradient(135deg, #2ecc71 0%, #27ae60 100%)';
                 }, 1500);
             }
+        }
+
+        function downloadQrCode(product) {
+            const qrcodeContainer = document.getElementById('qrcode');
+            const qrCanvas = qrcodeContainer.querySelector('canvas');
+            if (!qrCanvas) {
+                alert('QR Code not generated yet. Please wait.');
+                return;
+            }
+
+            // Create a new canvas to draw everything on
+            const canvas = document.createElement('canvas');
+            const padding = 20;
+            const textHeight = 60; // Space for two lines of text
+            canvas.width = qrCanvas.width + padding * 2;
+            canvas.height = qrCanvas.height + padding * 2 + textHeight;
+            const ctx = canvas.getContext('2d');
+
+            // White background
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw QR code
+            ctx.drawImage(qrCanvas, padding, padding);
+
+            // Add text below QR code
+            ctx.fillStyle = 'black';
+            ctx.textAlign = 'center';
+            ctx.font = '16px Segoe UI, sans-serif';
+            ctx.fillText(`Category: ${product.category}`, canvas.width / 2, qrCanvas.height + padding + 25);
+            ctx.fillText(`Item ID: ${product.itemId}`, canvas.width / 2, qrCanvas.height + padding + 50);
+
+            // Create download link
+            const link = document.createElement('a');
+            link.download = `qr-code-${product.itemId}.jpeg`;
+            link.href = canvas.toDataURL('image/jpeg', 0.9);
+            link.click();
         }
 
         // --- AI Summary Generation Logic (from summary.py) ---
