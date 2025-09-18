@@ -777,6 +777,12 @@
             if (aiReportContent) aiReportContent.innerHTML = '';
 
             
+            // Show loader while fetching data
+            productsGrid.innerHTML = `
+                <div class="no-products" style="grid-column: 1 / -1;">
+                    <div class="loader"></div>
+                    Fetching data...
+                </div>`;
             try {
                 const response = await fetch('https://sih-page.vercel.app/api/products');
                 if (!response.ok) {
